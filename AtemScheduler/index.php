@@ -1,0 +1,267 @@
+<html>  
+    <head>  
+        <title>Atem scheduler</title>  
+		<link rel="stylesheet" href="jquery-ui.css">
+        <link rel="stylesheet" href="bootstrap.min.css" />
+		<script src="jquery.min.js"></script>  
+		<script src="jquery-ui.js"></script>
+    </head>  
+    <body>  
+        <div class="container">
+			<h3 align="center">Atem scheduler</a></h3>
+			<table>
+				<tr>
+					<td width="200">ingang 1 = Kabelkrant</td>
+					<td width="200">ingang 2 = OBS</td>
+					<td width="200">ingang 3 = Stream 1</td>
+					<td width="200">ingang 4 = Stream 2</td>
+				</tr>
+				<tr>
+					<td >ingang 5 = Cam 1</td>
+					<td>ingang 6 = Cam 2</td>
+					<td>ingang 7 = NDI 1</td>
+					<td>ingang 8 = NDI 2</td>
+				</tr>
+			</table>
+			<div align="right" style="margin-bottom:5px;">
+			<button type="button" name="add" id="add" class="btn btn-success btn-xs">Add</button>
+			</div>
+			<div class="table-responsive" id="user_data">
+				
+			</div>
+			<br />
+		</div>
+		
+		<div id="user_dialog" title="Bewerk">
+			<form method="post" id="user_form">
+				<?php
+					include("database_connection.php");
+					$query = "SELECT * FROM schedules WHERE processed = 0 order by id desc limit 1";
+					$statement = $connect->prepare($query);
+					$statement->execute();
+					$result = $statement->fetchAll();
+					$total_row = $statement->rowCount();
+					foreach($result as $lastrow)
+					{
+						$durationseconds = date("s",strtotime($lastrow["duration"])) + (60*(date("i",strtotime($lastrow["duration"]))))+ (60*60*(date("H",strtotime($lastrow["duration"]))));
+						$olddatetime = date("Y-m-d H:i:s", strtotime($lastrow["swdate"] . $lastrow["swtime"]));
+						$newdatetime = date("d-m-Y H:i:s", strtotime($olddatetime) + $durationseconds);
+						$newdate = date("Y-m-d", strtotime($newdatetime));
+						$newtime = date("H:i:s", strtotime($newdatetime));
+					}
+				?>
+				<div class="form-group">
+					<label>Geef datum</label>
+					<input type="date" name="swdate" id="swdate" value="<?php echo $newdate; ?>" class="form-control" />
+					<span id="error_swdate" class="text-danger"></span>
+				</div>
+				<div class="form-group">
+					<label>Geef tijd</label>
+					<input type="time" name="swtime" id="swtime" step="1" value="<?php echo $newtime; ?>" class="form-control" />
+					<span id="error_swtime" class="text-danger"></span>
+				</div>
+				<div class="form-group">
+					<label>Ingang</label>
+					<select name="scene" id="scene" class="form-control" />
+						<option value="1">1</option>
+						<option value="2">2</option>
+						<option value="3">3</option>
+						<option value="4">4</option>
+						<option value="5">5</option>
+						<option value="6">6</option>
+						<option value="7">7</option>
+						<option value="8">8</option>
+					</select>
+					<span id="error_scene" class="text-danger"></span>
+				</div>
+				<div class="form-group">
+					<label>Transitie</label>
+					<select name="transition" id="transition" class="form-control">
+						<option value="Cut">Cut</option>
+						<option value="Mix">Mix</option>
+						<option value="Dip">Dip</option>
+						<option value="Wipe">Wipe</option>
+						<option value="DVE">DVE</option>
+					</select> 
+					<span id="error_transition" class="text-danger"></span>
+				</div>
+				
+				<div class="form-group">
+					<label>Geef looptijd</label>
+					<input type="time" name="duration" id="duration" step="1" value="00:00:00" class="form-control" />
+					<span id="error_duration" class="text-danger"></span>
+				</div>
+				<div class="form-group">
+					<label>Geef herhaaltijd in minuten, aantal keren of dagen</label>
+					<input type="text" name="repeattime" id="repeattime" class="form-control" />
+					<span id="error_repeattime" class="text-danger"></span>
+				</div>
+				<div class="form-group">
+					<input type="hidden" name="action" id="action" value="insert" />
+					<input type="hidden" name="hidden_id" id="hidden_id" />
+					<input type="submit" name="form_action" id="form_action" class="btn btn-info" value="Insert" />
+				</div>
+			</form>
+		</div>
+		
+		<div id="action_alert" title="Action">
+			
+		</div>
+		
+		<div id="delete_confirmation" title="Confirmation">
+		<p>Wilt u deze gegevens echt wissen?</p>
+		</div>
+		
+    </body>  
+</html>  
+
+
+
+
+<script>  
+$(document).ready(function(){  
+
+	load_data();
+    
+	function load_data()
+	{
+		$.ajax({
+			url:"fetch.php",
+			method:"POST",
+			success:function(data)
+			{
+				$('#user_data').html(data);
+			}
+		});
+	}
+	
+	$("#user_dialog").dialog({
+		autoOpen:false,
+		width:400
+	});
+	
+	$('#add').click(function(){
+		$('#user_dialog').attr('title', 'Add Data');
+		$('#action').val('insert');
+		$('#form_action').val('Toevoegen');
+		$('#user_form')[0].reset();
+		$('#form_action').attr('disabled', false);
+		$("#user_dialog").dialog('open');
+	});
+	
+	$('#user_form').on('submit', function(event){
+		event.preventDefault();
+		var error_swdate = '';
+		var error_scene = '';
+		if($('#swdate').val() == '')
+		{
+			error_dswdate = 'Datum is noodzakelijk';
+			$('#error_swdate').text(error_swdate);
+			$('#swdate').css('border-color', '#cc0000');
+		}
+		else
+		{
+			error_swdate = '';
+			$('#error_swdate').text(error_swdate);
+			$('#dtime').css('border-color', '');
+		}
+		if($('#scene').val() == '')
+		{
+			error_scene = 'Ingang is noodzakelijk';
+			$('#error_scene').text(error_scene);
+			$('#scene').css('border-color', '#cc0000');
+		}
+		else
+		{
+			error_scene = '';
+			$('#error_scene').text(error_scene);
+			$('#scene').css('border-color', '');
+		}
+		
+		if(error_swdate != '' || error_scene != '')
+		{
+			return false;
+		}
+		else
+		{
+			$('#form_action').attr('disabled', 'disabled');
+			var form_data = $(this).serialize();
+			$.ajax({
+				url:"action.php",
+				method:"POST",
+				data:form_data,
+				success:function(data)
+				{
+					$('#user_dialog').dialog('close');
+					$('#action_alert').html(data);
+					$('#action_alert').dialog('open');
+					load_data();
+					$('#form_action').attr('disabled', false);
+				}
+			});
+		}
+		
+	});
+	
+	$('#action_alert').dialog({
+		autoOpen:false
+	});
+	
+	$(document).on('click', '.edit', function(){
+		var id = $(this).attr('id');
+		var action = 'fetch_single';
+		$.ajax({
+			url:"action.php",
+			method:"POST",
+			data:{id:id, action:action},
+			dataType:"json",
+			success:function(data)
+			{
+				$('#swdate').val(data.swdate);
+				$('#swtime').val(data.swtime);
+				$('#scene').val(data.scene);
+				$('#transition').val(data.transition);
+				$('#duration').val(data.duration);
+				$('#repeattime').val(data.repeattime);
+				$('#user_dialog').attr('title', 'Edit Data');
+				$('#action').val('update');
+				$('#hidden_id').val(id);
+				$('#form_action').val('Opslaan');
+				$('#user_dialog').dialog('open');
+			}
+		});
+	});
+	
+	$('#delete_confirmation').dialog({
+		autoOpen:false,
+		modal: true,
+		buttons:{
+			Ok : function(){
+				var id = $(this).data('id');
+				var action = 'delete';
+				$.ajax({
+					url:"action.php",
+					method:"POST",
+					data:{id:id, action:action},
+					success:function(data)
+					{
+						$('#delete_confirmation').dialog('close');
+						$('#action_alert').html(data);
+						$('#action_alert').dialog('open');
+						load_data();
+					}
+				});
+			},
+			Cancel : function(){
+				$(this).dialog('close');
+			}
+		}	
+	});
+	
+	$(document).on('click', '.delete', function(){
+		var id = $(this).attr("id");
+		$('#delete_confirmation').data('id', id).dialog('open');
+	});
+	
+});  
+</script>
