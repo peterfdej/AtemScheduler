@@ -156,10 +156,5 @@ while True:
 		if writelog:
 			logging.warning(time.strftime("%Y%m%d%H%M%S") + ": connectionthread error")
 		time.sleep(10)
-
-
-
-
-
-
-
+	print("Atem connection error")
+	time.sleep(10)
